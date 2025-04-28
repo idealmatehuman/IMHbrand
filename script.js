@@ -16,9 +16,9 @@ const data = {
   /* 남성 */
   male: [
     { label: '전체',   code: 'ALL_MALE' },
-    { label: '유아',   code: 'MP_MK', max: 20 },
-    { label: '청소년', code: 'MP_MJ', max: 20 },
-    { label: '청년',   code: 'MP_MY', max: 20 },   // 6번 제외
+    { label: '유아',   code: 'MP_MK', max: 28 },
+    { label: '청소년', code: 'MP_MJ', max: 39 },
+    { label: '청년',   code: 'MP_MY', max: 26 },   // 6번 제외
     { label: '청장년', code: 'MP_MA', max: 20 },
     { label: '중장년', code: 'MP_MM', max: 20 },
     { label: '고령',   code: 'MP_MS', max: 20 }
