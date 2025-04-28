@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IMH 모델 갤러리</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>IMH 모델 갤러리</h1>
+    <!-- 네비게이션 컨테이너 -->
+    <div class="nav-container">
+      <!-- 성별 탭 -->
+      <nav id="gender-tabs">
+        <button data-gender="all" class="active">전체</button>
+        <button data-gender="female">여성</button>
+        <button data-gender="male">남성</button>
+      </nav>
+      <!-- 하위 카테고리 탭 -->
+      <nav id="category-tabs"></nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 썸네일 리스트 -->
+    <section id="thumbnails"></section>
+  </main>
+
+  <!-- 팝업(모달) -->
+  <div id="modal" class="hidden">
+    <div class="modal-content">
+      <!-- X 닫기 버튼 -->
+      <span class="close" role="button" aria-label="닫기">&times;</span>
+      <!-- 그룹 이미지 5장 뿌려줄 영역 -->
+      <div class="image-scroll-container"></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>IMH 모델 갤러리</p>
+    <p class="copyright">
+      &copy; 2024 (주)아이디얼메타휴먼. All rights reserved.
+    </p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
