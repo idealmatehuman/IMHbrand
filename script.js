@@ -1,608 +1,437 @@
 /*********************************************************
- * (1) 성별+카테고리 데이터
+ * (1) 데이터 ─ 실제 이미지가 있는 코드만 수록
  *********************************************************/
 const data = {
+  /* 여성 */
   female: [
-    { label: '전체', code: 'ALL_FEMALE' },
-    { label: '유아', code: 'FP_FK', max: 42 },
+    { label: '전체',   code: 'ALL_FEMALE' },
+    { label: '유아',   code: 'FP_FK', max: 42 },
     { label: '청소년', code: 'FP_FJ', max: 41 },
+    { label: '청년',   code: 'FP_FY', max: 73 },
     { label: '청장년', code: 'FP_FA', max: 32 },
-    { label: '청년', code: 'FP_FY', max: 73 },
     { label: '중장년', code: 'FP_FM', max: 20 },
-    { label: '고령', code: 'FP_FS', max: 20 }
+    { label: '고령',   code: 'FP_FS', max: 20 }
   ],
+
+  /* 남성 */
   male: [
-    { label: '전체', code: 'ALL_MALE' },
-    { label: '유아', code: 'MP_MK', max: 20 },
+    { label: '전체',   code: 'ALL_MALE' },
+    { label: '유아',   code: 'MP_MK', max: 20 },
     { label: '청소년', code: 'MP_MJ', max: 20 },
+    { label: '청년',   code: 'MP_MY', max: 20 },   // 6번 제외
     { label: '청장년', code: 'MP_MA', max: 20 },
-    { label: '청년', code: 'MP_MY', max: 20 },  // 여기서 6번 이미지만 제외
     { label: '중장년', code: 'MP_MM', max: 20 },
-    { label: '고령', code: 'MP_MS', max: 20 }
+    { label: '고령',   code: 'MP_MS', max: 20 }
+  ],
+
+  /* 동물 */
+  animal: [
+    { label: '전체',     code: 'ALL_ANIMAL' },
+    { label: '야생동물', code: 'AP_WILD', max: 20 }
+  ],
+
+  /* 식물 */
+  plants: [
+    { label: '전체',   code: 'ALL_PLANTS' },
+    { label: '꽃·화분', code: 'PP_FP',  max: 19 },
+    { label: '나무',   code: 'PP_TP',  max: 14 }
+  ],
+
+  /* 카툰 */
+  cartoon: [
+    { label: '전체', code: 'ALL_CARTOON' },
+    { label: '2D',  code: 'CP_2D',   max: 17 },
+    { label: '2.5D',code: 'CP_2.5D', max: 14 },
+    { label: '3D',  code: 'CP_3D',   max: 34 }
+  ],
+
+  /* 기타 */
+  other: [
+    { label: '전체', code: 'ALL_OTHER' },
+    { label: '배경', code: 'OP_BG',   max: 10 }
+  ],
+
+  /* 업종별 */
+  industry: [
+    { label: '전체',        code: 'ALL_INDUSTRY' },
+    { label: '전문직 관련', code: 'IP_PP',  max: 23 }
   ]
 };
 
-let currentGender = null;   // "female" or "male" or null
-let currentCategory = null; // { label, code, max }
-let currentImageIndex = 0;  // 모달 슬라이드 인덱스
+let currentGroup      = null;   // 상단 탭
+let currentCategory   = null;   // { label, code, max } | null
+let currentImageIndex = 0;      // 모달 인덱스
 
 /*********************************************************
- * (2) 초기화
+ * (2) 초기 세팅
  *********************************************************/
-window.onload = () => {
-  // 시작 시 전체(여+남) 이미지 표시
-  renderAllThumbnails();
-};
+window.onload = () => renderAllThumbnails();
 
 document.addEventListener('DOMContentLoaded', () => {
-  setupGenderTabs();   // 상단 탭 (여성/남성 토글, 하위메뉴)
-  setupModalEvents();  // 모달 기본 이벤트 (닫기 버튼, ESC)
-  closeModal();        // 초기에는 모달 닫힘
+  setupTopTabs();
+  bindGlobalKeyEvents();   // ESC / ← / →
 });
 
 /*********************************************************
- * (3) 상단 탭 세팅 (토글 방식)
+ * (3) 상단 탭
  *********************************************************/
-function setupGenderTabs() {
-  const genderButtons = document.querySelectorAll('#gender-tabs button');
-  const categoryTabs = document.getElementById('category-tabs');
+function setupTopTabs() {
+  const buttons = document.querySelectorAll('#gender-tabs button');
 
-  genderButtons.forEach((btn) => {
+  buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      const gender = btn.dataset.gender;
+      const group = btn.dataset.group;
 
-      // 1) "전체(all)" 버튼
-      if (gender === 'all') {
-        // 현재 열려 있던 하위 메뉴 닫기
+      /* 상단 “전체” */
+      if (group === 'all') {
         hideCategoryTabs();
-        removeActiveFromAllButtons();
-
-        // "전체" 탭만 active
+        deactivateAllTabs();
         btn.classList.add('active');
-
-        // 변수 초기화
-        currentGender = null;
-        currentCategory = null;
-
-        // 전체 썸네일 렌더
+        currentGroup = currentCategory = null;
         renderAllThumbnails();
         return;
       }
 
-      // 2) 여성 or 남성 버튼
+      /* 다른 탭 */
       if (btn.classList.contains('active')) {
-        // [A] 이미 같은 성별이 열려 있음 -> 닫기
         hideCategoryTabs();
-        removeActiveFromGenderButtons();
-        currentGender = null;
-        currentCategory = null;
+        deactivateNonAllTabs();
+        currentGroup = currentCategory = null;
       } else {
-        // [B] 다른 성별이거나, 이전에 없던 성별 -> 열기
-        removeActiveFromAllButtons(); // 전체, 여성, 남성 모두 해제
+        deactivateAllTabs();
         btn.classList.add('active');
-        currentGender = gender;
+        currentGroup = group;
         currentCategory = null;
-        showCategoryTabs(btn, gender);
+        showCategoryTabs(btn, group);
       }
     });
   });
 
-  // 영역 밖을 클릭하면 하위 메뉴 닫기
+  /* 네비게이션 외 클릭 → 드롭다운 닫기 */
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.nav-container')) {
       hideCategoryTabs();
-      removeActiveFromGenderButtons();
-      currentGender = null;
-      currentCategory = null;
+      deactivateNonAllTabs();
+      currentGroup = currentCategory = null;
     }
   });
 }
 
 /*********************************************************
- * (4) 카테고리 탭(드롭다운) 표시
- *     -> 버튼 바로 아래에 최대한 붙도록 위치 세팅
+ * (4) 카테고리 드롭다운
  *********************************************************/
-function showCategoryTabs(button, gender) {
-  const categoryTabs = document.getElementById('category-tabs');
-  if (!categoryTabs) return;
+function showCategoryTabs(button, group) {
+  const wrap = document.getElementById('category-tabs');
+  wrap.innerHTML = '';
 
-  // 하위 메뉴 초기화
-  categoryTabs.innerHTML = '';
-
-  // 버튼의 화면상 위치 정보
   const rect = button.getBoundingClientRect();
+  Object.assign(wrap.style, {
+    position: 'fixed',
+    top : `${rect.bottom}px`,
+    left: `${rect.left}px`,
+    minWidth: `${rect.width}px`
+  });
 
-  // (중요) 버튼의 bottom 값(아래쪽 좌표)을 top으로 지정해서
-  //        버튼 바로 아래 붙게 만든다
-  categoryTabs.style.position = 'fixed';
-  categoryTabs.style.top = `${rect.bottom}px`; // rect.bottom이 버튼 아래쪽
-  categoryTabs.style.left = `${rect.left}px`;
-  categoryTabs.style.minWidth = `${rect.width}px`;
-
-  // 해당 성별 하위 카테고리 생성
-  const categories = data[gender];
-  categories.forEach((cat) => {
+  data[group].forEach((cat) => {
     const cbtn = document.createElement('button');
     cbtn.textContent = cat.label;
+    if (currentCategory && cat.code === currentCategory.code) cbtn.classList.add('active');
 
-    if (currentCategory && cat.code === currentCategory.code) {
-      cbtn.classList.add('active');
-    }
-
-    // 카테고리 선택 시
     cbtn.addEventListener('click', () => {
-      // 하위 버튼들 active 해제 -> 현재만 active
-      Array.from(categoryTabs.children).forEach((ch) => ch.classList.remove('active'));
+      [...wrap.children].forEach(b => b.classList.remove('active'));
       cbtn.classList.add('active');
       currentCategory = cat;
-
-      // 해당 카테고리 썸네일 렌더
-      renderCategoryThumbnails(gender, cat);
-
-      // 하위 메뉴 닫기
+      renderCategoryThumbnails(group, cat);
       hideCategoryTabs();
     });
 
-    categoryTabs.appendChild(cbtn);
+    wrap.appendChild(cbtn);
   });
 
-  // 보여주기
-  categoryTabs.classList.add('visible');
+  wrap.classList.add('visible');
 }
 
-// 하위 메뉴 닫기
 function hideCategoryTabs() {
-  const categoryTabs = document.getElementById('category-tabs');
-  categoryTabs.classList.remove('visible');
+  document.getElementById('category-tabs').classList.remove('visible');
 }
 
 /*********************************************************
- * (5) 버튼들의 active 해제 유틸
+ * (5) 탭 상태 유틸
  *********************************************************/
-function removeActiveFromAllButtons() {
-  const buttons = document.querySelectorAll('#gender-tabs button');
-  buttons.forEach((b) => b.classList.remove('active'));
+function deactivateAllTabs() {
+  document.querySelectorAll('#gender-tabs button').forEach(b => b.classList.remove('active'));
 }
-function removeActiveFromGenderButtons() {
-  const btns = document.querySelectorAll('#gender-tabs button[data-gender="female"], #gender-tabs button[data-gender="male"]');
-  btns.forEach((b) => b.classList.remove('active'));
+function deactivateNonAllTabs() {
+  document.querySelectorAll('#gender-tabs button:not([data-group="all"])')
+          .forEach(b => b.classList.remove('active'));
 }
 
 /*********************************************************
- * (6) 썸네일 렌더링
+ * (6) 썸네일 렌더
  *********************************************************/
-
-/** (6-1) 전체(여+남) 렌더링 */
 function renderAllThumbnails() {
-  const container = document.getElementById('thumbnails');
-  container.classList.add('fade-out');
-  
-  setTimeout(() => {
-    container.innerHTML = '';
+  const wrap = document.getElementById('thumbnails');
+  wrap.classList.add('fade-out');
 
-    // 여성/남성 모든 카테고리
-    Object.entries(data).forEach(([genderKey, categories]) => {
-      categories.forEach((cat) => {
-        if (cat.code.startsWith('ALL_')) return; // ALL_FEMALE / ALL_MALE 제외
+  setTimeout(() => {
+    wrap.innerHTML = '';
+
+    for (const [group, cats] of Object.entries(data)) {
+      cats.forEach((cat) => {
+        if (cat.code.startsWith('ALL_')) return;
 
         for (let i = 1; i <= cat.max; i++) {
-          // ★ 남성 카테고리(MP_MY)만 6번 제외
-          if (genderKey === 'male' && cat.code === 'MP_MY' && i === 6) {
-            continue;
-          }
-
-          const groupNum = i.toString().padStart(4, '0');
-          container.appendChild(createThumbnailItem(cat.code, groupNum));
+          if (group === 'male' && cat.code === 'MP_MY' && i === 6) continue; // 예외
+          wrap.appendChild(createThumbnailItem(cat.code, i.toString().padStart(4, '0')));
         }
       });
-    });
+    }
 
     requestAnimationFrame(() => {
-      container.classList.remove('fade-out');
-      container.classList.add('fade-in');
-      setTimeout(() => {
-        container.classList.remove('fade-in');
-      }, 200);
+      wrap.classList.replace('fade-out', 'fade-in');
+      setTimeout(() => wrap.classList.remove('fade-in'), 200);
     });
   }, 200);
 }
 
-/** (6-2) 특정 성별+카테고리 렌더링 */
-function renderCategoryThumbnails(gender, cat) {
-  const container = document.getElementById('thumbnails');
-  container.classList.add('fade-out');
-  
+function renderCategoryThumbnails(group, cat) {
+  const wrap = document.getElementById('thumbnails');
+  wrap.classList.add('fade-out');
+
   setTimeout(() => {
-    container.innerHTML = '';
+    wrap.innerHTML = '';
 
-    // (A) 여성 전체
-    if (cat.code === 'ALL_FEMALE') {
-      data.female.forEach((c) => {
+    /* “전체” 카테고리를 선택한 경우 */
+    if (cat.code.startsWith('ALL_')) {
+      data[group].forEach((c) => {
         if (c.code.startsWith('ALL_')) return;
         for (let i = 1; i <= c.max; i++) {
-          // 여성 카테고리는 그대로 → skip 로직 없음
-          const groupNum = i.toString().padStart(4, '0');
-          container.appendChild(createThumbnailItem(c.code, groupNum));
+          if (group === 'male' && c.code === 'MP_MY' && i === 6) continue;
+          wrap.appendChild(createThumbnailItem(c.code, i.toString().padStart(4, '0')));
         }
       });
-    }
-    // (B) 남성 전체
-    else if (cat.code === 'ALL_MALE') {
-      data.male.forEach((c) => {
-        if (c.code.startsWith('ALL_')) return;
-        for (let i = 1; i <= c.max; i++) {
-          // ★ 남성 ALL 중에서도 MP_MY && 6번만 제외
-          if (c.code === 'MP_MY' && i === 6) {
-            continue;
-          }
-          const groupNum = i.toString().padStart(4, '0');
-          container.appendChild(createThumbnailItem(c.code, groupNum));
-        }
-      });
-    }
-    // (C) 특정 카테고리
-    else {
+    } else {   /* 단일 카테고리 */
       for (let i = 1; i <= cat.max; i++) {
-        // 남성 + MP_MY && 6번만 제외
-        if (gender === 'male' && cat.code === 'MP_MY' && i === 6) {
-          continue;
-        }
-
-        const groupNum = i.toString().padStart(4, '0');
-        container.appendChild(createThumbnailItem(cat.code, groupNum));
+        if (group === 'male' && cat.code === 'MP_MY' && i === 6) continue;
+        wrap.appendChild(createThumbnailItem(cat.code, i.toString().padStart(4, '0')));
       }
     }
 
     requestAnimationFrame(() => {
-      container.classList.remove('fade-out');
-      container.classList.add('fade-in');
-      setTimeout(() => {
-        container.classList.remove('fade-in');
-      }, 200);
+      wrap.classList.replace('fade-out', 'fade-in');
+      setTimeout(() => wrap.classList.remove('fade-in'), 200);
     });
   }, 200);
 }
 
-/** (6-3) 썸네일 DOM 생성 */
-function createThumbnailItem(code, groupNum) {
-  const thumb = document.createElement('div');
-  thumb.classList.add('thumbnail-item');
+function createThumbnailItem(code, num) {
+  const box = document.createElement('div');
+  box.classList.add('thumbnail-item');
 
   const img = document.createElement('img');
-  img.src = `모델/${code}_${groupNum}_0001.png`;
-  img.alt = `${code} 그룹 ${groupNum}`;
-  img.loading = 'lazy';
+  img.src = `모델/${code}_${num}_0001.png`;
+  img.alt = `${code} 그룹 ${num}`;
 
-  const label = document.createElement('div');
-  label.classList.add('thumbnail-label');
-  label.textContent = `그룹 ${groupNum}`;
+  const lab = document.createElement('div');
+  lab.classList.add('thumbnail-label');
+  lab.textContent = `그룹 ${num}`;
 
-  thumb.addEventListener('click', () => openModal(code, groupNum));
-
-  thumb.appendChild(img);
-  thumb.appendChild(label);
-  return thumb;
+  box.append(img, lab);
+  box.addEventListener('click', () => openModal(code, num));
+  return box;
 }
 
 /*********************************************************
- * (7) 모달 이벤트 (닫기 버튼, ESC)
+ * (7) 전역 키 이벤트
  *********************************************************/
-function setupModalEvents() {
+function bindGlobalKeyEvents() {
   const modal = document.getElementById('modal');
-  if (!modal) return;
+  modal.querySelector('.close').addEventListener('click', closeModal);
 
-  // 닫기 버튼
-  const closeBtn = modal.querySelector('.close');
-  closeBtn?.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => {
+    if (modal.classList.contains('hidden')) return;
+    if (e.repeat) return;
 
-  // ESC 키
-  function handleKeyDown(e) {
-    if (e.key === 'Escape') {
-      closeModal();
+    if (e.key === 'Escape')         closeModal();
+    else if (e.key === 'ArrowLeft')  { e.preventDefault(); showPrevImage(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); showNextImage(); }
+  });
+}
+
+/*********************************************************
+ * (8) 모달 열기 — 스와이프 리스너 관리
+ *********************************************************/
+function openModal(code, num) {
+  const modal = document.getElementById('modal');
+  const cont  = modal.querySelector('.image-scroll-container');
+
+  /* 이전 모달 리스너 해제 */
+  if (window.modalSwipeCleanup) {
+    window.modalSwipeCleanup();
+    window.modalSwipeCleanup = null;
+  }
+
+  /* 콘텐츠 채우기 */
+  cont.innerHTML = '';
+
+  const hint    = Object.assign(document.createElement('div'), { className:'swipe-hint',   textContent:'좌우로 스와이프하여 이미지를 넘기세요' });
+  const counter = Object.assign(document.createElement('div'), { className:'image-counter' });
+
+  const prevBtn = Object.assign(document.createElement('button'), { className:'slide-button prev-button', textContent:'‹', ariaLabel:'이전 이미지' });
+  const nextBtn = Object.assign(document.createElement('button'), { className:'slide-button next-button', textContent:'›', ariaLabel:'다음 이미지' });
+
+  prevBtn.addEventListener('click', e => { e.stopPropagation(); showPrevImage(); });
+  nextBtn.addEventListener('click', e => { e.stopPropagation(); showNextImage(); });
+
+  cont.append(hint, counter, prevBtn, nextBtn);
+
+  for (let i = 1; i <= 5; i++) {
+    const img = document.createElement('img');
+    img.src = `모델/${code}_${num}_${i.toString().padStart(4, '0')}.png`;
+    img.alt = `${code}_${num}_${i}`;
+    cont.appendChild(img);
+  }
+
+  /* 초기 이미지 */
+  currentImageIndex = 0;
+  showImage(currentImageIndex);
+
+  /* 스와이프 */
+  let dragging = false, startX = 0, pointerId = null, anim = false;
+  const imgsSel = () => cont.querySelectorAll('img');
+
+  function pointerDown(e) {
+    if (anim || e.target.closest('.slide-button,.close')) return;
+    dragging = true;
+    startX = e.clientX;
+    pointerId = e.pointerId;
+    imgsSel().forEach(img => img.style.transition = 'none');
+    cont.setPointerCapture(pointerId);
+  }
+
+  function pointerMove(e) {
+    if (!dragging || e.pointerId !== pointerId || anim) return;
+    const diff = e.clientX - startX;
+    const imgs = imgsSel();
+    const active = cont.querySelector('img.active');
+    const idx = [...imgs].indexOf(active);
+
+    active.style.transform = `translateX(calc(-50% + ${diff}px))`;
+
+    const prev = imgs[(idx - 1 + imgs.length) % imgs.length];
+    const next = imgs[(idx + 1) % imgs.length];
+
+    if (prev) {
+      prev.style.transform = `translateX(calc(-50% - 20px + ${diff}px))`;
+      prev.style.opacity = diff > 0 ? '0.3' : '0';
+    }
+    if (next) {
+      next.style.transform = `translateX(calc(-50% + 20px + ${diff}px))`;
+      next.style.opacity = diff < 0 ? '0.3' : '0';
     }
   }
-  document.addEventListener('keydown', handleKeyDown);
 
-  // 이벤트 해제
-  return function cleanup() {
-    closeBtn?.removeEventListener('click', closeModal);
-    document.removeEventListener('keydown', handleKeyDown);
+  function pointerEnd(e) {
+    if (!dragging || e.pointerId !== pointerId) return;
+    dragging = false;
+    const diff = e.clientX - startX;
+    imgsSel().forEach(img => img.style.transition = 'all 0.3s ease');
+
+    if (Math.abs(diff) > 50 && !anim) {
+      anim = true;
+      diff > 0 ? showPrevImage() : showNextImage();
+      setTimeout(() => anim = false, 300);
+    } else resetPositions();
+
+    cont.releasePointerCapture(e.pointerId);
+  }
+
+  function resetPositions() {
+    const imgs = imgsSel();
+    const active = cont.querySelector('img.active');
+    const idx = [...imgs].indexOf(active);
+
+    imgs.forEach((img, i) => {
+      img.style.opacity = (i === idx) ? '1' : '0.3';
+      img.style.transform =
+        i === idx ? 'translateX(-50%)' :
+        i === (idx - 1 + imgs.length) % imgs.length ? 'translateX(calc(-50% - 20px))' :
+        i === (idx + 1) % imgs.length ? 'translateX(calc(-50% + 20px))' :
+        img.style.transform;
+    });
+  }
+
+  /* 리스너 등록 */
+  cont.addEventListener('pointerdown',  pointerDown);
+  cont.addEventListener('pointermove',  pointerMove);
+  cont.addEventListener('pointerup',    pointerEnd);
+  cont.addEventListener('pointercancel',pointerEnd);
+
+  /* 닫을 때 해제할 수 있도록 저장 */
+  window.modalSwipeCleanup = () => {
+    cont.removeEventListener('pointerdown',  pointerDown);
+    cont.removeEventListener('pointermove',  pointerMove);
+    cont.removeEventListener('pointerup',    pointerEnd);
+    cont.removeEventListener('pointercancel',pointerEnd);
   };
-}
 
-/*********************************************************
- * (8) 모달 열기
- *********************************************************/
-function openModal(code, groupNum) {
-  const modal = document.getElementById('modal');
-  if (!modal) return;
-
-  // 이전 모달 이벤트 정리
-  if (window.modalCleanup) {
-    window.modalCleanup();
-  }
-
-  // 새 모달 설정
-  window.modalCleanup = (function() {
-    // (A) 기본 닫기 이벤트
-    const baseCleanup = setupModalEvents();
-
-    // (B) 이미지/화살표 세팅
-    const container = modal.querySelector('.image-scroll-container');
-    container.innerHTML = '';
-
-    // 스와이프 힌트
-    const swipeHint = document.createElement('div');
-    swipeHint.classList.add('swipe-hint');
-    swipeHint.textContent = '좌우로 스와이프하여 이미지를 넘기세요';
-    container.appendChild(swipeHint);
-
-    // 카운터
-    const counter = document.createElement('div');
-    counter.classList.add('image-counter');
-    container.appendChild(counter);
-
-    // 이전/다음 버튼
-    const prevBtn = document.createElement('button');
-    prevBtn.classList.add('slide-button', 'prev-button');
-    prevBtn.textContent = '‹';
-    prevBtn.setAttribute('aria-label', '이전 이미지');
-    prevBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showPrevImage();
-    });
-    container.appendChild(prevBtn);
-
-    const nextBtn = document.createElement('button');
-    nextBtn.classList.add('slide-button', 'next-button');
-    nextBtn.textContent = '›';
-    nextBtn.setAttribute('aria-label', '다음 이미지');
-    nextBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showNextImage();
-    });
-    container.appendChild(nextBtn);
-
-    // 5장 이미지
-    for (let i = 1; i <= 5; i++) {
-      const imgNum = i.toString().padStart(4, '0');
-      const img = document.createElement('img');
-      img.src = `모델/${code}_${groupNum}_${imgNum}.png`;
-      img.alt = `${code}_${groupNum}_${imgNum}`;
-      container.appendChild(img);
-    }
-
-    // 첫 이미지 표시
-    currentImageIndex = 0;
-    showImage(currentImageIndex);
-
-    // (C) Pointer 스와이프 이벤트
-    let isDragging = false;
-    let isAnimating = false;
-    let startX = 0;
-    let pointerId = null;
-
-    function handlePointerDown(e) {
-      // 화살표/닫기버튼 클릭은 스와이프 X
-      if (isAnimating) return;
-      if (
-        e.target.classList.contains('slide-button') ||
-        e.target.classList.contains('close')
-      ) {
-        return; 
-      }
-
-      isDragging = true;
-      pointerId = e.pointerId;
-      startX = e.clientX;
-
-      // 트랜지션 제거
-      const images = container.querySelectorAll('img');
-      images.forEach(img => {
-        img.style.transition = 'none';
-      });
-
-      container.setPointerCapture(e.pointerId);
-    }
-
-    function handlePointerMove(e) {
-      if (!isDragging || e.pointerId !== pointerId || isAnimating) return;
-      const diff = e.clientX - startX;
-
-      const images = container.querySelectorAll('img');
-      const activeImage = container.querySelector('img.active');
-      if (!activeImage) return;
-
-      const activeIndex = Array.from(images).indexOf(activeImage);
-
-      // 현재(중앙) 이미지 이동
-      activeImage.style.transform = `translateX(calc(-50% + ${diff}px))`;
-
-      // 이전
-      const prevImg = images[(activeIndex - 1 + images.length) % images.length];
-      if (prevImg) {
-        prevImg.style.transform = `translateX(calc(-50% - 20px + ${diff}px))`;
-        prevImg.style.opacity = diff > 0 ? '0.3' : '0';
-      }
-
-      // 다음
-      const nextImg = images[(activeIndex + 1) % images.length];
-      if (nextImg) {
-        nextImg.style.transform = `translateX(calc(-50% + 20px + ${diff}px))`;
-        nextImg.style.opacity = diff < 0 ? '0.3' : '0';
-      }
-    }
-
-    function handlePointerUp(e) {
-      if (!isDragging || e.pointerId !== pointerId) return;
-      isDragging = false;
-      pointerId = null;
-
-      const diff = e.clientX - startX;
-      const threshold = 50;
-
-      // 트랜지션 복구
-      const images = container.querySelectorAll('img');
-      images.forEach(img => {
-        img.style.transition = 'all 0.3s ease';
-      });
-
-      if (!isAnimating && Math.abs(diff) > threshold) {
-        isAnimating = true;
-        if (diff > 0) {
-          showPrevImage();
-        } else {
-          showNextImage();
-        }
-        setTimeout(() => {
-          isAnimating = false;
-        }, 300);
-      } else {
-        resetImagePositions();
-      }
-
-      container.releasePointerCapture(e.pointerId);
-    }
-
-    function resetImagePositions() {
-      const images = container.querySelectorAll('img');
-      const activeImage = container.querySelector('img.active');
-      if (!activeImage) return;
-
-      const activeIndex = Array.from(images).indexOf(activeImage);
-      images.forEach((img, index) => {
-        if (index === activeIndex) {
-          img.style.transform = 'translateX(-50%)';
-          img.style.opacity = '1';
-        } else if (index === (activeIndex - 1 + images.length) % images.length) {
-          img.style.transform = 'translateX(calc(-50% - 20px))';
-          img.style.opacity = '0.3';
-        } else if (index === (activeIndex + 1) % images.length) {
-          img.style.transform = 'translateX(calc(-50% + 20px))';
-          img.style.opacity = '0.3';
-        } else {
-          img.style.opacity = '0';
-        }
-      });
-    }
-
-    // 이벤트 등록
-    container.addEventListener('pointerdown', handlePointerDown);
-    container.addEventListener('pointermove', handlePointerMove);
-    container.addEventListener('pointerup', handlePointerUp);
-    container.addEventListener('pointercancel', handlePointerUp);
-
-    // 해제 함수
-    return () => {
-      baseCleanup();
-
-      container.removeEventListener('pointerdown', handlePointerDown);
-      container.removeEventListener('pointermove', handlePointerMove);
-      container.removeEventListener('pointerup', handlePointerUp);
-      container.removeEventListener('pointercancel', handlePointerUp);
-    };
-  })();
-
-  // 모달 표시
   modal.classList.remove('hidden');
 }
 
-/** 모달 닫기 */
 function closeModal() {
   const modal = document.getElementById('modal');
-  if (!modal) return;
+  if (modal.classList.contains('hidden')) return;
 
+  if (window.modalSwipeCleanup) {
+    window.modalSwipeCleanup();
+    window.modalSwipeCleanup = null;
+  }
+
+  modal.querySelector('.image-scroll-container').innerHTML = '';
   modal.classList.add('hidden');
-
-  // 내용 비우기
-  const container = modal.querySelector('.image-scroll-container');
-  if (container) {
-    container.innerHTML = '';
-  }
-
   currentImageIndex = 0;
-
-  // 이벤트 해제
-  if (window.modalCleanup) {
-    window.modalCleanup();
-    window.modalCleanup = null;
-  }
 }
 
 /*********************************************************
- * (9) 모달 슬라이드 (이전/다음)
+ * (9) 이미지 표시
  *********************************************************/
-function showImage(index) {
-  const images = document.querySelectorAll('.image-scroll-container img');
-  if (!images.length) return;
+function showImage(idx) {
+  const imgs = document.querySelectorAll('.image-scroll-container img');
+  if (!imgs.length) return;
 
-  const swipeHint = document.querySelector('.swipe-hint');
+  const hint    = document.querySelector('.swipe-hint');
   const counter = document.querySelector('.image-counter');
 
-  // 초기화
-  images.forEach((img) => {
+  imgs.forEach(img => {
     img.style.transition = 'none';
-    img.classList.remove('active', 'prev', 'next');
-    img.style.transform = '';
+    img.classList.remove('active','prev','next');
     img.style.opacity = '0';
   });
+  void imgs[0].offsetHeight; // reflow
+  imgs.forEach(img => img.style.transition = 'all 0.3s ease');
 
-  // 강제 리플로우
-  void images[0].offsetHeight;
+  const cur  = imgs[idx];
+  const prev = imgs[(idx - 1 + imgs.length) % imgs.length];
+  const next = imgs[(idx + 1) % imgs.length];
 
-  images.forEach((img) => {
-    img.style.transition = 'all 0.3s ease';
-  });
+  if (cur)  { cur.classList.add('active'); cur.style.opacity = '1';   cur.style.transform = 'translateX(-50%)'; }
+  if (prev) { prev.classList.add('prev');  prev.style.opacity = '0.3'; prev.style.transform = 'translateX(calc(-50% - 20px))'; }
+  if (next) { next.classList.add('next');  next.style.opacity = '0.3'; next.style.transform = 'translateX(calc(-50% + 20px))'; }
 
-  // 현재
-  const currentImg = images[index];
-  if (currentImg) {
-    currentImg.classList.add('active');
-    currentImg.style.opacity = '1';
-    currentImg.style.transform = 'translateX(-50%)';
-  }
-
-  // 이전
-  const prevIndex = (index - 1 + images.length) % images.length;
-  const prevImg = images[prevIndex];
-  if (prevImg) {
-    prevImg.classList.add('prev');
-    prevImg.style.opacity = '0.3';
-    prevImg.style.transform = 'translateX(calc(-50% - 20px))';
-  }
-
-  // 다음
-  const nextIndex = (index + 1) % images.length;
-  const nextImg = images[nextIndex];
-  if (nextImg) {
-    nextImg.classList.add('next');
-    nextImg.style.opacity = '0.3';
-    nextImg.style.transform = 'translateX(calc(-50% + 20px))';
-  }
-
-  // 카운터 표시
-  if (counter) {
-    counter.textContent = `${index + 1} / ${images.length}`;
-  }
-
-  // 스와이프 힌트
-  if (swipeHint) {
-    swipeHint.classList.add('visible');
-  }
+  counter.textContent = `${idx+1} / ${imgs.length}`;
+  hint.classList.add('visible');
 }
 
 function showNextImage() {
-  const images = document.querySelectorAll('.image-scroll-container img');
-  if (!images.length) return;
-
-  currentImageIndex = (currentImageIndex + 1) % images.length;
+  const imgs = document.querySelectorAll('.image-scroll-container img');
+  if (!imgs.length) return;
+  currentImageIndex = (currentImageIndex + 1) % imgs.length;
   showImage(currentImageIndex);
 }
 
 function showPrevImage() {
-  const images = document.querySelectorAll('.image-scroll-container img');
-  if (!images.length) return;
-
-  currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+  const imgs = document.querySelectorAll('.image-scroll-container img');
+  if (!imgs.length) return;
+  currentImageIndex = (currentImageIndex - 1 + imgs.length) % imgs.length;
   showImage(currentImageIndex);
 }

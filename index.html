@@ -2,22 +2,29 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IMH 모델 갤러리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMH 모델 · 패키지 갤러리</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header>
     <h1>IMH 모델 갤러리</h1>
+
     <!-- 네비게이션 컨테이너 -->
     <div class="nav-container">
-      <!-- 성별 탭 -->
+      <!-- 상단 탭 -->
       <nav id="gender-tabs">
-        <button data-gender="all" class="active">전체</button>
-        <button data-gender="female">여성</button>
-        <button data-gender="male">남성</button>
+        <button data-group="all"      class="active">전체</button>
+        <button data-group="female">여성</button>
+        <button data-group="male">남성</button>
+        <button data-group="animal">동물</button>
+        <button data-group="plants">식물</button>
+        <button data-group="cartoon">카툰</button>
+        <button data-group="other">기타</button>
+        <button data-group="industry">업종별</button>
       </nav>
-      <!-- 하위 카테고리 탭 -->
+
+      <!-- 하위(카테고리) 탭 -->
       <nav id="category-tabs"></nav>
     </div>
   </header>
